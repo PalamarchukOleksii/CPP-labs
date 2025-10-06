@@ -1,4 +1,6 @@
 import math
+import json
+import pickle
 
 from xvm.enums.op_code import OpCode
 from xvm.op import Op
@@ -6,11 +8,12 @@ from xvm.parser import parse_string
 
 __all__ = ['parse_string', 'VM']
 
+ENTRYPOINT_KEY = "$entrypoint$"
+
 class VM:
     def __init__(self, input_fn=input, print_fn=print):
         self.stack = []
         self.variables = {}
-
         self.input_fn = input_fn
         self.print_fn = print_fn
 
@@ -98,18 +101,36 @@ class VM:
 
 
     def run_code_from_json(self, json_path: str):
-        pass
+        with open(json_path, 'r') as file:
+            data = json.load(file)
 
+        data_ops = data[ENTRYPOINT_KEY]
+        ops = []
+
+        for op_dict in data_ops:
+            opcode = OpCode(op_dict.get("op"))
+            arg = op_dict.get("arg")
+
+            if arg is not None:
+                ops.append(Op(opcode, arg))
+            else:
+                ops.append(Op(opcode))
+
+        return self.run_code(ops)
 
     def dump_stack(self, pkl_path: str):
-        pass
+        with open(pkl_path, 'wb') as file:
+            pickle.dump(self.stack, file)
 
     def load_stack(self, pkl_path: str):
-        pass
+        with open(pkl_path, 'rb') as file:
+            self.stack = pickle.load(file)
 
 
     def dump_memory(self, pkl_path: str):
-        pass
+        with open(pkl_path, 'wb') as file:
+            pickle.dump(self.variables, file)
 
     def load_memory(self, pkl_path: str):
-        pass
+        with open(pkl_path, 'rb') as file:
+            self.variables = pickle.load(file)
