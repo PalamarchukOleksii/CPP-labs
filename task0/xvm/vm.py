@@ -94,33 +94,33 @@ class VM:
             self.stack.append(-arg1)
 
         elif op.opcode == OpCode.EQ:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a == b else 0)
             
         elif op.opcode == OpCode.NEQ:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a != b else 0)
             
         elif op.opcode == OpCode.GT:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a > b else 0)
             
         elif op.opcode == OpCode.LT:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a < b else 0)
             
         elif op.opcode == OpCode.GE:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a >= b else 0)
             
         elif op.opcode == OpCode.LE:
-            b = self.stack.pop()
             a = self.stack.pop()
+            b = self.stack.pop()
             self.stack.append(1 if a <= b else 0)
 
         elif op.opcode == OpCode.LABEL:
@@ -156,11 +156,13 @@ class VM:
                 self.labels[label_name] = i
 
     def run_code(self, code: list[Op]):
-        if isinstance(code, list[Op]):
-            self.code = code
-        else:
-            raise ValueError("Code must be a list of Operations")
+        if not isinstance(code, list):
+            raise TypeError(f"Expected list of Op, got {type(code).__name__}")
+        if not all(isinstance(op, Op) for op in code):
+            raise TypeError("All elements of code must be Op instances")
         
+        self.code = code
+
         self._preprocess_labels()
 
         self.pc = 0

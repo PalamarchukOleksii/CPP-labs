@@ -12,3 +12,7 @@ authors = [
 
 [project.scripts]
 xvm = "xvm.run:xvm_debug"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xvm"]
