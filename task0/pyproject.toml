@@ -7,8 +7,12 @@ name = "xvm"
 version = "2025.0.0"
 authors = [
   {name = "Student Name 1", email = "chichik.anastasiia@lll.kpi.ua"},
-  {name = "Student Name 2", email = "student_email2@gmail.com"},
+  {name = "Oleksii Palamarchuk", email = "palamarchuk.oleksii@lll.kpi.ua"},
 ]
 
 [project.scripts]
 xvm = "xvm.run:xvm_debug"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xvm"]
