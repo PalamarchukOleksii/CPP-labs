@@ -17,6 +17,8 @@ class OpCode(Enum):
     INPUT_STRING = 'INPUT_STRING'
     INPUT_NUMBER = 'INPUT_NUMBER'
 
+    BREAKPOINT = 'BREAKPOINT'
+
     EQ = 'EQ'
     NEQ = 'NEQ'
     GT = 'GT'

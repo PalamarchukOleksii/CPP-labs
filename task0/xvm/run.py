@@ -1,4 +1,5 @@
-# Your XVM debugger here.
+from .debugger import Debugger
+
 
 def run_debug():
-    print("Debugger is not implemented. TODO(you): implement me.")
+    Debugger().cmdloop()

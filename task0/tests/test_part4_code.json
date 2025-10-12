@@ -1,0 +1,35 @@
+{
+    "$entrypoint$": [
+        {
+            "op": "LOAD_CONST",
+            "arg": 10
+        },
+        {
+            "op": "BREAKPOINT"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "x"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 5
+        },
+        {
+            "op": "BREAKPOINT"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "x"
+        },
+        {
+            "op": "ADD"
+        },
+        {
+            "op": "BREAKPOINT"
+        },
+        {
+            "op": "PRINT"
+        }
+    ]
+}
