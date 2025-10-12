@@ -1,5 +1,5 @@
 import cmd
-from .vm import VM, parse_string
+from vm import VM, parse_string
 
 class Debugger(cmd.Cmd):
     intro = "Welcome to VM Debugger. Type help or ? to list commands."
@@ -137,8 +137,35 @@ class Debugger(cmd.Cmd):
             else:
                 print(f"{marker}{i:3d}: <end of code>")
 
+    def do_next(self, _arg):
+        """Execute next instruction. If it's a function call, execute the entire function. Usage: next"""
+        try:
+            operation = self.vm.next()
+            print(f"Executed: {operation.opcode.name} {operation.args if operation.args else ''}")
+            print(f"PC: {self.vm.pc}, Function: {self.vm.current_function}")
+            
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def do_frame(self, _arg):
+        """Print all variables in the current stack frame. Usage: frame"""
+        frame_vars = self.vm.variables
+        
+        if not frame_vars:
+            print("No variables in current frame.")
+        else:
+            print(f"Current frame: {self.vm.current_function}")
+            print("Variables:")
+            for variable, value in frame_vars.items():
+                print(f"  {variable}: {value}")
+        
+        if self.vm.call_stack:
+            print(f"\nCall stack depth: {len(self.vm.call_stack)}")
+            print("Call stack:")
+            for i, frame in enumerate(reversed(self.vm.call_stack)):
+                print(f"  #{i}: {frame.function_name} (return to PC {frame.return_pc})")
+
     # --- Default (catch-all) ---
     def default(self, line):
         """Called when no other command matches."""
         print(f"[default handler] You entered: {line!r}")
-

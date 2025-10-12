@@ -300,6 +300,26 @@ class VM:
             
         return operation
     
+    def next(self):
+        if not self.code:
+            raise RuntimeError("No code loaded. Use load_code_from_json() first.")
+        
+        if self.pc >= len(self.code):
+            raise RuntimeError("Program execution finished.")
+        
+        operation = self.code[self.pc]
+
+        if operation.opcode == OpCode.CALL:
+            call_depth = len(self.call_stack)
+            self.step()
+            
+            while self.pc < len(self.code) and len(self.call_stack) > call_depth:
+                self.step()
+        else:
+            self.step()
+            
+        return operation
+    
     def clear_breakpoint(self):
         self.breakpoint_hit = False
     
