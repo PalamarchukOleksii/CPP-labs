@@ -105,6 +105,38 @@ class Debugger(cmd.Cmd):
         except Exception:
             print("Error during execution")
 
+    def do_list(self, _arg):
+        """List up to 5 instructions before and after the current one. Usage: list"""
+        if not self.vm.code:
+            print("No code loaded. Use 'load <file>' first.")
+            return
+            
+        current_pc = self.vm.pc
+        total_instructions = len(self.vm.code)
+        
+        start = max(0, current_pc - 5)
+        end = min(total_instructions, current_pc + 6)
+        
+        print(f"Instructions around PC {current_pc}:")
+        print("-" * 40)
+        
+        for i in range(start, end):
+            marker = ">>> " if i == current_pc else "    "
+            
+            if i < len(self.vm.code):
+                op = self.vm.code[i]
+                if hasattr(op, 'args') and op.args:
+                    if isinstance(op.args, list):
+                        args_str = " " + " ".join(map(str, op.args))
+                    else:
+                        args_str = f" {op.args}"
+                else:
+                    args_str = ""
+                
+                print(f"{marker}{i:3d}: {op.opcode.name}{args_str}")
+            else:
+                print(f"{marker}{i:3d}: <end of code>")
+
     # --- Default (catch-all) ---
     def default(self, line):
         """Called when no other command matches."""

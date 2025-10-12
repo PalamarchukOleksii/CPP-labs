@@ -217,8 +217,6 @@ class VM:
         self.load_code_from_json(json_path)
         return self.run_loaded_code()
 
-
-    
     def step(self):
         if not self.code:
             raise RuntimeError("No code loaded. Use load_code_from_json() first.")
