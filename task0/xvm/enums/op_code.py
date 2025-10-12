@@ -16,3 +16,10 @@ class OpCode(Enum):
     PRINT = 'PRINT'
     INPUT_STRING = 'INPUT_STRING'
     INPUT_NUMBER = 'INPUT_NUMBER'
+
+    EQ = 'EQ'
+    NEQ = 'NEQ'
+    GT = 'GT'
+    LT = 'LT'
+    GE = 'GE'
+    LE = 'LE'

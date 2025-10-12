@@ -90,6 +90,36 @@ class VM:
             arg1 = self.stack.pop()
             self.stack.append(-arg1)
 
+        elif op.code == OpCode.EQ:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a == b else 0)
+            
+        elif op.code == OpCode.NEQ:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a != b else 0)
+            
+        elif op.code == OpCode.GT:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a > b else 0)
+            
+        elif op.code == OpCode.LT:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a < b else 0)
+            
+        elif op.code == OpCode.GE:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a >= b else 0)
+            
+        elif op.code == OpCode.LE:
+            b = self.stack.pop()
+            a = self.stack.pop()
+            self.stack.append(1 if a <= b else 0)
+
         else:
             raise NotImplementedError(f"Opcode {op.opcode} not implemented yet.")
 
