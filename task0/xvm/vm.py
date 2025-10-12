@@ -19,8 +19,9 @@ class VM:
         self.pc = 0
         self.code = []
         self.labels = {}
+        self.breakpoint_hit = False
 
-    def _run_op(self, op: Op):
+    def run_op(self, op: Op):
         if op.opcode == OpCode.LOAD_CONST:
             assert len(op.args) == 1, f"LOAD_CONST expects exactly one argument, got {len(op.args)}"
             self.stack.append(op.args[0])
@@ -145,6 +146,9 @@ class VM:
                     raise NameError(f"Label '{label_name}' is not defined")
                 self.pc = self.labels[label_name]
 
+        elif op.opcode == OpCode.BREAKPOINT:
+            self.breakpoint_hit = True
+
         else:
             raise NotImplementedError(f"Opcode {op.opcode} not implemented yet.")
         
@@ -155,27 +159,36 @@ class VM:
                 label_name = op.args[0]
                 self.labels[label_name] = i
 
-    def run_code(self, code: list[Op]):
+    def run_code(self, code: list[Op], load_code=True):
         if not isinstance(code, list):
             raise TypeError(f"Expected list of Op, got {type(code).__name__}")
         if not all(isinstance(op, Op) for op in code):
             raise TypeError("All elements of code must be Op instances")
         
-        self.code = code
+        if load_code:
+            self.code = code
+            self._preprocess_labels()
+            self.pc = 0
 
-        self._preprocess_labels()
+        self.breakpoint_hit = False
 
-        self.pc = 0
-        while self.pc < len(self.code):
+        while self.pc < len(self.code) and not self.breakpoint_hit:
             operation = self.code[self.pc]
             
-            self._run_op(operation)
-            self.pc += 1
+            self.run_op(operation)
+            
+            if not self.breakpoint_hit:
+                self.pc += 1
 
         return self.stack, self.variables
-
-
-    def run_code_from_json(self, json_path: str):
+    
+    def run_loaded_code(self):
+        if not self.code:
+            raise RuntimeError("No code loaded. Use load_code_from_json() first.")
+        
+        return self.run_code(self.code, load_code=False)
+    
+    def parse_code_from_json(self, json_path: str) -> list[Op]:
         with open(json_path, 'r') as file:
             data = json.load(file)
 
@@ -191,7 +204,43 @@ class VM:
             else:
                 ops.append(Op(opcode))
 
-        return self.run_code(ops)
+        return ops
+    
+    def load_code_from_json(self, json_path: str):
+        ops = self.parse_code_from_json(json_path)
+        self.code = ops
+        self._preprocess_labels()
+        self.pc = 0
+        return ops
+
+    def run_code_from_json(self, json_path: str):
+        self.load_code_from_json(json_path)
+        return self.run_loaded_code()
+
+
+    
+    def step(self):
+        if not self.code:
+            raise RuntimeError("No code loaded. Use load_code_from_json() first.")
+        
+        if self.pc >= len(self.code):
+            raise RuntimeError("Program execution finished.")
+        
+        operation = self.code[self.pc]
+        old_pc = self.pc
+        
+        self.run_op(operation)
+        
+        if self.pc == old_pc:
+            self.pc += 1
+            
+        return operation
+    
+    def clear_breakpoint(self):
+        self.breakpoint_hit = False
+    
+    def is_breakpoint_hit(self):
+        return self.breakpoint_hit
 
     def dump_stack(self, pkl_path: str):
         with open(pkl_path, 'wb') as file:
@@ -200,7 +249,6 @@ class VM:
     def load_stack(self, pkl_path: str):
         with open(pkl_path, 'rb') as file:
             self.stack = pickle.load(file)
-
 
     def dump_memory(self, pkl_path: str):
         with open(pkl_path, 'wb') as file:
