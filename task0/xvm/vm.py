@@ -16,8 +16,11 @@ class VM:
         self.variables = {}
         self.input_fn = input_fn
         self.print_fn = print_fn
+        self.pc = 0
+        self.code = []
+        self.labels = {}
 
-    def run_op(self, op: Op):
+    def _run_op(self, op: Op):
         if op.opcode == OpCode.LOAD_CONST:
             assert len(op.args) == 1, f"LOAD_CONST expects exactly one argument, got {len(op.args)}"
             self.stack.append(op.args[0])
@@ -90,43 +93,83 @@ class VM:
             arg1 = self.stack.pop()
             self.stack.append(-arg1)
 
-        elif op.code == OpCode.EQ:
+        elif op.opcode == OpCode.EQ:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a == b else 0)
             
-        elif op.code == OpCode.NEQ:
+        elif op.opcode == OpCode.NEQ:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a != b else 0)
             
-        elif op.code == OpCode.GT:
+        elif op.opcode == OpCode.GT:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a > b else 0)
             
-        elif op.code == OpCode.LT:
+        elif op.opcode == OpCode.LT:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a < b else 0)
             
-        elif op.code == OpCode.GE:
+        elif op.opcode == OpCode.GE:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a >= b else 0)
             
-        elif op.code == OpCode.LE:
+        elif op.opcode == OpCode.LE:
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(1 if a <= b else 0)
 
+        elif op.opcode == OpCode.LABEL:
+            assert len(op.args) == 1, f"LABEL expects 1 argument, got {len(op.args)}"
+            label_name = op.args[0]
+            if label_name not in self.labels:
+                self.labels[label_name] = self.pc
+
+        elif op.opcode == OpCode.JMP:
+            assert len(op.args) == 1, f"JMP expects 1 argument, got {len(op.args)}"
+            label_name = op.args[0]
+            if label_name not in self.labels:
+                raise NameError(f"Label '{label_name}' is not defined")
+            self.pc = self.labels[label_name]
+            
+        elif op.opcode == OpCode.CJMP:
+            assert len(op.args) == 1, f"CJMP expects 1 argument, got {len(op.args)}"
+            label_name = op.args[0]
+            condition = self.stack.pop()
+            if condition == 1:
+                if label_name not in self.labels:
+                    raise NameError(f"Label '{label_name}' is not defined")
+                self.pc = self.labels[label_name]
+
         else:
             raise NotImplementedError(f"Opcode {op.opcode} not implemented yet.")
-
+        
+    def _preprocess_labels(self):
+        self.labels = {}
+        for i, op in enumerate(self.code):
+            if op.opcode == OpCode.LABEL:
+                label_name = op.args[0]
+                self.labels[label_name] = i
 
     def run_code(self, code: list[Op]):
-        for op in code:
-            self.run_op(op)
+        if isinstance(code, list[Op]):
+            self.code = code
+        else:
+            raise ValueError("Code must be a list of Operations")
+        
+        self._preprocess_labels()
+
+        self.pc = 0
+        while self.pc < len(self.code):
+            operation = self.code[self.pc]
+            
+            self._run_op(operation)
+            self.pc += 1
+
         return self.stack, self.variables
 
 

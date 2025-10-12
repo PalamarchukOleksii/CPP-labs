@@ -23,3 +23,7 @@ class OpCode(Enum):
     LT = 'LT'
     GE = 'GE'
     LE = 'LE'
+
+    LABEL = 'LABEL'
+    JMP = 'JMP'
+    CJMP = 'CJMP'
