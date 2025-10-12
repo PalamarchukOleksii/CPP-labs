@@ -5,6 +5,7 @@ import pickle
 from xvm.enums.op_code import OpCode
 from xvm.op import Op
 from xvm.parser import parse_string
+from xvm.frame import Frame
 
 __all__ = ['parse_string', 'VM']
 
@@ -20,6 +21,10 @@ class VM:
         self.code = []
         self.labels = {}
         self.breakpoint_hit = False
+
+        self.call_stack = []
+        self.functions = {}
+        self.current_function = ENTRYPOINT_KEY
 
     def run_op(self, op: Op):
         if op.opcode == OpCode.LOAD_CONST:
@@ -135,7 +140,7 @@ class VM:
             label_name = op.args[0]
             if label_name not in self.labels:
                 raise NameError(f"Label '{label_name}' is not defined")
-            self.pc = self.labels[label_name]
+            self.pc = self.labels[label_name] - 1
             
         elif op.opcode == OpCode.CJMP:
             assert len(op.args) == 1, f"CJMP expects 1 argument, got {len(op.args)}"
@@ -144,10 +149,40 @@ class VM:
             if condition == 1:
                 if label_name not in self.labels:
                     raise NameError(f"Label '{label_name}' is not defined")
-                self.pc = self.labels[label_name]
+                self.pc = self.labels[label_name] - 1
 
         elif op.opcode == OpCode.BREAKPOINT:
             self.breakpoint_hit = True
+
+        elif op.opcode == OpCode.CALL:
+            assert len(op.args) == 0, f"CALL expects no arguments, got {len(op.args)}"
+            function_name = self.stack.pop()
+            
+            if function_name not in self.functions:
+                raise NameError(f"Function '{function_name}' is not defined")
+            
+            frame = Frame(self.current_function, self.pc, self.variables.copy(), self.labels.copy())
+            self.call_stack.append(frame)
+
+            self.current_function = function_name
+            self.code = self.functions[function_name]
+            self.variables = {}
+            self._preprocess_labels()
+            self.pc = -1
+            
+        elif op.opcode == OpCode.RET:
+            assert len(op.args) == 0, f"RET expects no arguments, got {len(op.args)}"
+            
+            if not self.call_stack:
+                self.pc = len(self.code)
+                return
+            
+            frame = self.call_stack.pop()
+            self.current_function = frame.function_name
+            self.code = self.functions[frame.function_name]
+            self.variables = frame.variables
+            self.labels = frame.labels
+            self.pc = frame.return_pc
 
         else:
             raise NotImplementedError(f"Opcode {op.opcode} not implemented yet.")
@@ -159,22 +194,53 @@ class VM:
                 label_name = op.args[0]
                 self.labels[label_name] = i
 
-    def run_code(self, code: list[Op], load_code=True):
-        if not isinstance(code, list):
-            raise TypeError(f"Expected list of Op, got {type(code).__name__}")
-        if not all(isinstance(op, Op) for op in code):
-            raise TypeError("All elements of code must be Op instances")
-        
-        if load_code:
-            self.code = code
-            self._preprocess_labels()
-            self.pc = 0
+    def run_code(self, code, load_code=True):
+        if isinstance(code, dict):
+            self.functions = code.copy()
+            
+            if ENTRYPOINT_KEY not in self.functions:
+                raise ValueError(f"Code dictionary must contain '{ENTRYPOINT_KEY}' key")
+            
+            if load_code:
+                self.code = self.functions[ENTRYPOINT_KEY]
+                self.current_function = ENTRYPOINT_KEY
+                self._preprocess_labels()
+                self.pc = 0
+                self.call_stack = []
+                
+        elif isinstance(code, list):
+            if not all(isinstance(op, Op) for op in code):
+                raise TypeError("All elements of code must be Op instances")
+            
+            if load_code:
+                self.functions = {ENTRYPOINT_KEY: code}
+                self.code = code
+                self.current_function = ENTRYPOINT_KEY
+                self._preprocess_labels()
+                self.pc = 0
+                self.call_stack = []
+        else:
+            raise TypeError(f"Expected list[Op] or dict[str, list[Op]], got {type(code).__name__}")
 
         self.breakpoint_hit = False
 
-        while self.pc < len(self.code) and not self.breakpoint_hit:
+        while True:
+            if self.pc >= len(self.code):
+                if self.call_stack:
+                    frame = self.call_stack.pop()
+                    self.current_function = frame.function_name
+                    self.code = self.functions[self.current_function]
+                    self.variables = frame.variables
+                    self.labels = frame.labels
+                    self.pc = frame.return_pc + 1
+                    continue
+                else:
+                    break
+
+            if self.breakpoint_hit:
+                break
+
             operation = self.code[self.pc]
-            
             self.run_op(operation)
             
             if not self.breakpoint_hit:
@@ -231,6 +297,26 @@ class VM:
         
         if self.pc == old_pc:
             self.pc += 1
+            
+        return operation
+    
+    def next(self):
+        if not self.code:
+            raise RuntimeError("No code loaded. Use load_code_from_json() first.")
+        
+        if self.pc >= len(self.code):
+            raise RuntimeError("Program execution finished.")
+        
+        operation = self.code[self.pc]
+
+        if operation.opcode == OpCode.CALL:
+            call_depth = len(self.call_stack)
+            self.step()
+            
+            while self.pc < len(self.code) and len(self.call_stack) > call_depth:
+                self.step()
+        else:
+            self.step()
             
         return operation
     

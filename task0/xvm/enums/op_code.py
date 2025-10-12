@@ -29,3 +29,6 @@ class OpCode(Enum):
     LABEL = 'LABEL'
     JMP = 'JMP'
     CJMP = 'CJMP'
+
+    CALL = 'CALL'
+    RET = 'RET'
