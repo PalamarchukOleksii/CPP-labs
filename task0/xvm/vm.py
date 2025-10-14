@@ -142,6 +142,9 @@ class VM:
                 raise NameError(f"Label '{label_name}' is not defined")
             self.pc = self.labels[label_name] - 1
             
+            if self.breakpoint_hit:
+                    self.pc += 1
+            
         elif op.opcode == OpCode.CJMP:
             assert len(op.args) == 1, f"CJMP expects 1 argument, got {len(op.args)}"
             label_name = op.args[0]
@@ -150,6 +153,9 @@ class VM:
                 if label_name not in self.labels:
                     raise NameError(f"Label '{label_name}' is not defined")
                 self.pc = self.labels[label_name] - 1
+
+                if self.breakpoint_hit:
+                    self.pc += 1
 
         elif op.opcode == OpCode.BREAKPOINT:
             self.breakpoint_hit = True
@@ -169,6 +175,9 @@ class VM:
             self.variables = {}
             self._preprocess_labels()
             self.pc = -1
+            
+            if self.breakpoint_hit:
+                self.pc += 1
             
         elif op.opcode == OpCode.RET:
             assert len(op.args) == 0, f"RET expects no arguments, got {len(op.args)}"
@@ -254,30 +263,35 @@ class VM:
         
         return self.run_code(self.code, load_code=False)
     
-    def parse_code_from_json(self, json_path: str) -> list[Op]:
+    def parse_code_from_json(self, json_path: str) -> dict[str, list[Op]]:
         with open(json_path, 'r') as file:
             data = json.load(file)
 
-        data_ops = data[ENTRYPOINT_KEY]
-        ops = []
+        all_code = {}
+        for func_name, data_ops in data.items():
+            ops = []
+            for op_dict in data_ops:
+                opcode = OpCode(op_dict.get("op"))
+                arg = op_dict.get("arg")
+                if arg is not None:
+                    ops.append(Op(opcode, arg))
+                else:
+                    ops.append(Op(opcode))
+            all_code[func_name] = ops
 
-        for op_dict in data_ops:
-            opcode = OpCode(op_dict.get("op"))
-            arg = op_dict.get("arg")
+        return all_code
 
-            if arg is not None:
-                ops.append(Op(opcode, arg))
-            else:
-                ops.append(Op(opcode))
-
-        return ops
-    
     def load_code_from_json(self, json_path: str):
-        ops = self.parse_code_from_json(json_path)
-        self.code = ops
+        code_dict = self.parse_code_from_json(json_path)
+        if ENTRYPOINT_KEY not in code_dict:
+            raise ValueError(f"JSON must contain '{ENTRYPOINT_KEY}' key")
+        
+        self.functions = code_dict
+        self.code = self.functions[ENTRYPOINT_KEY]
+        self.current_function = ENTRYPOINT_KEY
         self._preprocess_labels()
         self.pc = 0
-        return ops
+        return code_dict
 
     def run_code_from_json(self, json_path: str):
         self.load_code_from_json(json_path)
