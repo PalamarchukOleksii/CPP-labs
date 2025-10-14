@@ -1,4 +1,4 @@
-from debugger import Debugger
+from xvm.debugger import Debugger
 
 
 def run_debug():

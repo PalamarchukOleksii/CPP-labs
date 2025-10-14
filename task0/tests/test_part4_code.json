@@ -30,6 +30,25 @@
         },
         {
             "op": "PRINT"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": "hello_world"
+        },
+        {
+            "op": "CALL"
+        },
+        {
+            "op": "BREAKPOINT"
+        }
+    ],
+    "hello_world": [
+        {
+            "op": "LOAD_CONST",
+            "arg": "Hello world!"
+        },
+        {
+            "op": "PRINT"
         }
     ]
 }

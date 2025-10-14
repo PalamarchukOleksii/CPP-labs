@@ -1,5 +1,5 @@
 import cmd
-from vm import VM, parse_string
+from xvm.vm import VM, parse_string
 
 class Debugger(cmd.Cmd):
     intro = "Welcome to VM Debugger. Type help or ? to list commands."
