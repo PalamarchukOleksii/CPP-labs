@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 77.0.3"]
+requires = ["setuptools >= 77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,11 +9,16 @@ authors = [
   {name = "Anastasiia Chichik", email = "chichik.anastasiia@lll.kpi.ua"},
   {name = "Oleksii Palamarchuk", email = "palamarchuk.oleksii@lll.kpi.ua"},
 ]
+dependencies = []
+license = {text = "MIT"}
+requires-python = ">=3.10"
+urls = {repository = "https://github.com/PalamarchukOleksii/CPP-labs"}
+
+[project.optional-dependencies]
+dev = ["pytest >= 7.0.0"]
 
 [project.scripts]
-xvm = "xvm.run:run_debug"
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["xvm"]
-exclude = ["useful_examples*"]
+xvm-debug = "xvm.run:main"
+xvm-build = "xvm.build:main"
+xvm-start = "xvm.start:main"
+xvm-test = "xvm.test_runner:main"

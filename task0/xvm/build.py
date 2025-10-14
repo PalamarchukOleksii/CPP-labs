@@ -51,8 +51,7 @@ def parse_file_to_json(txt_file_path):
         json.dump(funcs, f, indent=4)
     print(f"Saved JSON to {json_file_path}")
 
-
-if __name__ == "__main__":
+def main():
     if len(sys.argv) != 2:
         print("Usage: python build.py <path_to_txt_file>")
         sys.exit(1)
@@ -63,3 +62,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parse_file_to_json(txt_file_path)
+
+if __name__ == "__main__":
+    main()

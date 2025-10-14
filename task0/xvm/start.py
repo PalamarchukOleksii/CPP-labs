@@ -5,9 +5,7 @@ import sys
 from xvm.vm import VM
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Execute XVM bytecode from a JSON file."
-    )
+    parser = argparse.ArgumentParser(description="Execute XVM bytecode from a JSON file.")
     parser.add_argument(
         "code_file_path",
         type=str,
@@ -23,16 +21,8 @@ def main():
 
     vm = VM(input_fn=input, print_fn=print)
     
-    print(f"--- XVM: Running Bytecode from {code_path} ---")
-    
     try:
-        final_stack, final_variables = vm.run_code_from_json(code_path)
-        
-        print("\n--- Program Finished Successfully ---")
-
-        if final_stack:
-            print(f"Final stack value: {final_stack[-1]}")
-
+        vm.run_code_from_json(code_path)
     except json.JSONDecodeError:
         print(f"\nError: Failed to parse JSON file at '{code_path}'. Ensure it is correctly formatted.", file=sys.stderr)
         sys.exit(1)
