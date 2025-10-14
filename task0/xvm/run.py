@@ -1,3 +1,4 @@
+from xvm.vm import VM
 from xvm.debugger import Debugger
 
 

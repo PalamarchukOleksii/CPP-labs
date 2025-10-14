@@ -99,6 +99,12 @@ class VM:
             arg1 = self.stack.pop()
             self.stack.append(-arg1)
 
+        elif op.opcode == OpCode.MOD:
+            assert len(op.args) == 0, f"MOD expects no arguments, got {len(op.args)}"
+            arg1 = self.stack.pop()
+            arg2 = self.stack.pop()
+            self.stack.append(arg1 % arg2)
+
         elif op.opcode == OpCode.EQ:
             a = self.stack.pop()
             b = self.stack.pop()
@@ -140,10 +146,7 @@ class VM:
             label_name = op.args[0]
             if label_name not in self.labels:
                 raise NameError(f"Label '{label_name}' is not defined")
-            self.pc = self.labels[label_name] - 1
-            
-            if self.breakpoint_hit:
-                    self.pc += 1
+            self.pc = self.labels[label_name]
             
         elif op.opcode == OpCode.CJMP:
             assert len(op.args) == 1, f"CJMP expects 1 argument, got {len(op.args)}"
@@ -152,11 +155,8 @@ class VM:
             if condition == 1:
                 if label_name not in self.labels:
                     raise NameError(f"Label '{label_name}' is not defined")
-                self.pc = self.labels[label_name] - 1
-
-                if self.breakpoint_hit:
-                    self.pc += 1
-
+                self.pc = self.labels[label_name]
+                
         elif op.opcode == OpCode.BREAKPOINT:
             self.breakpoint_hit = True
 

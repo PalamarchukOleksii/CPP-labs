@@ -1,0 +1,61 @@
+#fast_power
+STORE_VAR "exponent"
+STORE_VAR "base"
+LOAD_VAR "exponent"
+LOAD_CONST 0
+EQ
+CJMP "BASE_CASE"
+LOAD_CONST 2
+LOAD_CONST 2
+LOAD_VAR "exponent"
+MOD
+LOAD_VAR "exponent"
+SUB
+DIV
+STORE_VAR "half_exp"
+LOAD_VAR "base"
+LOAD_VAR "half_exp"
+LOAD_CONST "fast_power"
+CALL
+STORE_VAR "half_power"
+LOAD_VAR "half_power"
+LOAD_VAR "half_power"
+MUL
+STORE_VAR "result"
+LOAD_CONST 2
+LOAD_VAR "exponent"
+MOD
+LOAD_CONST 1
+EQ
+CJMP "MULTIPLY_ODD"
+JMP "RETURN_RESULT"
+LABEL "BASE_CASE"
+LOAD_CONST 1
+RET
+LABEL "MULTIPLY_ODD"
+LOAD_VAR "result"
+LOAD_VAR "base"
+MUL
+STORE_VAR "result"
+LABEL "RETURN_RESULT"
+LOAD_VAR "result"
+RET
+
+#$entrypoint$
+LOAD_CONST "Enter base (x): "
+PRINT
+INPUT_NUMBER
+STORE_VAR "base"
+LOAD_CONST "Enter exponent (n): "
+PRINT
+INPUT_NUMBER
+STORE_VAR "exponent"
+LOAD_VAR "base"
+LOAD_VAR "exponent"
+LOAD_CONST "fast_power"
+CALL
+STORE_VAR "result"
+LOAD_CONST "Result: "
+PRINT
+LOAD_VAR "result"
+PRINT
