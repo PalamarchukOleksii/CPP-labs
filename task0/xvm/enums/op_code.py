@@ -12,6 +12,7 @@ class OpCode(Enum):
     EXP = 'EXP'
     SQRT = 'SQRT'
     NEG = 'NEG'
+    MOD = 'MOD'
 
     PRINT = 'PRINT'
     INPUT_STRING = 'INPUT_STRING'

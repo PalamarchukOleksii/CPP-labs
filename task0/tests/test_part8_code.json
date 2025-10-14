@@ -1,0 +1,220 @@
+{
+    "fast_power": [
+        {
+            "op": "STORE_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "base"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 0
+        },
+        {
+            "op": "EQ"
+        },
+        {
+            "op": "CJMP",
+            "arg": "BASE_CASE"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 2
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 2
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "MOD"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "SUB"
+        },
+        {
+            "op": "DIV"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "half_exp"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "base"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "half_exp"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": "fast_power"
+        },
+        {
+            "op": "CALL"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "half_power"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "half_power"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "half_power"
+        },
+        {
+            "op": "MUL"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 2
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "MOD"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 1
+        },
+        {
+            "op": "EQ"
+        },
+        {
+            "op": "CJMP",
+            "arg": "MULTIPLY_ODD"
+        },
+        {
+            "op": "JMP",
+            "arg": "RETURN_RESULT"
+        },
+        {
+            "op": "LABEL",
+            "arg": "BASE_CASE"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": 1
+        },
+        {
+            "op": "RET"
+        },
+        {
+            "op": "LABEL",
+            "arg": "MULTIPLY_ODD"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "base"
+        },
+        {
+            "op": "MUL"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "LABEL",
+            "arg": "RETURN_RESULT"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "RET"
+        }
+    ],
+    "$entrypoint$": [
+        {
+            "op": "LOAD_CONST",
+            "arg": "Enter base (x): "
+        },
+        {
+            "op": "PRINT"
+        },
+        {
+            "op": "INPUT_NUMBER"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "base"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": "Enter exponent (n): "
+        },
+        {
+            "op": "PRINT"
+        },
+        {
+            "op": "INPUT_NUMBER"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "base"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "exponent"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": "fast_power"
+        },
+        {
+            "op": "CALL"
+        },
+        {
+            "op": "STORE_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "LOAD_CONST",
+            "arg": "Result: "
+        },
+        {
+            "op": "PRINT"
+        },
+        {
+            "op": "LOAD_VAR",
+            "arg": "result"
+        },
+        {
+            "op": "PRINT"
+        }
+    ]
+}
