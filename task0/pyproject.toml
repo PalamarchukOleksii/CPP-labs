@@ -18,7 +18,7 @@ urls = {repository = "https://github.com/PalamarchukOleksii/CPP-labs"}
 dev = ["pytest >= 7.0.0"]
 
 [project.scripts]
-xvm-debug = "xvm.run:main"
+xvm-run = "xvm.run:main"
 xvm-build = "xvm.build:main"
 xvm-start = "xvm.start:main"
 xvm-test = "xvm.test_runner:main"
