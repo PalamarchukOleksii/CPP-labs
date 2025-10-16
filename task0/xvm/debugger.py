@@ -102,8 +102,9 @@ class Debugger(cmd.Cmd):
             else:
                 print(f"Executed {instructions_executed} instructions, stopped at PC {self.vm.pc}")
                 
-        except Exception:
-            print("Error during execution")
+        except Exception as e:
+            print(f"Error during execution: {e}")
+            print(f"PC: {self.vm.pc}, Function: {self.vm.current_function}")
 
     def do_list(self, _arg):
         """List up to 5 instructions before and after the current one. Usage: list"""
