@@ -52,6 +52,17 @@ class VM:
         elif op.opcode == OpCode.INPUT_NUMBER:
             assert len(op.args) == 0, f"INPUT_NUMBER expects no arguments, got {len(op.args)}"
             value = self.input_fn()
+            
+            if isinstance(value, str):
+                value = value.strip()
+                try:
+                    if '.' not in value and 'e' not in value.lower():
+                        value = int(value)
+                    else:
+                        value = float(value)
+                except ValueError:
+                    raise ValueError(f"INPUT_NUMBER: '{value}' is not a valid number")
+            
             assert isinstance(value, (int, float)), f"INPUT_NUMBER expected a number, got {type(value)}"
             self.stack.append(value)
 
