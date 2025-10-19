@@ -6,16 +6,36 @@
 # Implement `my_counter` counting ifs and loops
 # NOTE: elif is also considered "if"
 
+
+import ast
+import inspect
+import textwrap
+
+
 def my_counter(func):
-    
+    source = inspect.getsource(func)
+    source = textwrap.dedent(source)
+
+    tree = ast.parse(source)
+
+    num_ifs = 0
+    num_loops = 0
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If):
+            num_ifs += 1
+        elif isinstance(node, (ast.For, ast.While)):
+            num_loops += 1
+
     def modified_function(*args, **kwargs):
         # run original func
         return func(*args, **kwargs)
-    
-    modified_function.num_loops = -1
-    modified_function.num_ifs = -1
+
+    modified_function.num_loops = num_loops
+    modified_function.num_ifs = num_ifs
 
     return modified_function
+
 
 #############################################
 
@@ -24,6 +44,7 @@ def test_no_loops_ifs():
     @my_counter
     def func(a, b):
         return a + b
+
     assert func.num_loops == 0, func.num_loops
     assert func.num_ifs == 0, func.num_ifs
 
@@ -37,9 +58,10 @@ def test_ifs():
             return 0
         else:
             return 1
+
     assert func.num_loops == 0, func.num_loops
     assert func.num_ifs == 2, func.num_ifs
-    
+
 
 def test_loops():
     @my_counter
@@ -48,6 +70,7 @@ def test_loops():
             j = 0
             while j < b:
                 j += 1
+
     assert func.num_loops == 2, func.num_loops
     assert func.num_ifs == 0, func.num_ifs
 
@@ -66,11 +89,12 @@ def test_if_loops():
     assert func.num_loops == 2, func.num_loops
     assert func.num_ifs == 1, func.num_ifs
 
+
 def test_big():
     @my_counter
     def func(a, b):
         var = "while"
-        if a ** b < 1.0:
+        if a**b < 1.0:
             var2 = " if a ** b < 1.0:\n"
             for i in range(a):
                 if i < 3:
