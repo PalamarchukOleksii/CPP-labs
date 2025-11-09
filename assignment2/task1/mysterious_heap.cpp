@@ -124,6 +124,13 @@ size_t mysterious_heap_load(uint8_t **memory, const char *fname)
 void get_hint1(uint8_t *memory, size_t memory_size)
 {
     Pool_Node *p = (Pool_Node *)(memory);
+    FILE *output_file = fopen("../hint1.txt", "wb");
+    if (!output_file)
+    {
+        fprintf(stderr, "Error: Cannot create output file\n");
+        return;
+    }
+
     while (p != NULL)
     {
         if (p->flags & POOL_FLAG_IS_INTERESTING)
@@ -136,9 +143,26 @@ void get_hint1(uint8_t *memory, size_t memory_size)
 
             uint8_t *payload = hint + inter_p->hint_length;
             SubHeader *sub_header = (SubHeader *)payload;
+
+            fprintf(stderr, "SubHeader key=%llu data_length=%llu\n", sub_header->key, sub_header->data_length);
+
+            uint8_t *data = (uint8_t *)sub_header + sizeof(SubHeader);
+
+            uint8_t *data_copy = (uint8_t *)malloc(sub_header->data_length);
+            memcpy(data_copy, data, sub_header->data_length);
+            xor_encdec_8(data_copy, sub_header->data_length, sub_header->key);
+
+            fwrite(data_copy, 1, sub_header->data_length, output_file);
+
+            fprintf(stderr, "Extracted %llu bytes of data\n", sub_header->data_length);
+
+            free(data_copy);
         }
         p = p->next;
     }
+
+    fclose(output_file);
+    printf("Data extraction complete. Saved to ../hint1.txt\n");
 }
 
 int main()
@@ -148,6 +172,6 @@ int main()
     uint8_t *memory = NULL;
     size_t memory_size = mysterious_heap_load(&memory, fname);
     get_hint1(memory, memory_size);
-
+    free(memory);
     return 0;
 }
