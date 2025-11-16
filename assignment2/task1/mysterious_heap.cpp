@@ -353,32 +353,34 @@ std::vector<uint8_t> assemble_final_data(
     const std::vector<ChunkData> &chunks)
 {
     std::cout << "Assembling final data..." << std::endl;
+
+    std::unordered_map<size_t, const ChunkData *> chunk_map;
+    size_t total_size = 0;
+    for (const ChunkData &chunk : chunks)
+    {
+        chunk_map[chunk.header.index] = &chunk;
+        total_size += chunk.header.chunk_size;
+    }
+
     std::vector<uint8_t> final_data;
+    final_data.reserve(total_size);
     for (size_t i = 0; i < decrypted_chunks.size(); ++i)
     {
         const std::vector<uint8_t> &chunk_data = decrypted_chunks[i];
-        if (!chunk_data.empty())
-        {
-            const ChunkData *matching_chunk = nullptr;
-            for (const ChunkData &chunk : chunks)
-            {
-                if (chunk.header.index == i)
-                {
-                    matching_chunk = &chunk;
-                    break;
-                }
-            }
 
-            if (matching_chunk)
-            {
-                final_data.insert(final_data.end(),
-                                  chunk_data.begin(),
-                                  chunk_data.begin() + matching_chunk->header.chunk_size);
-            }
-        }
-        else
+        if (chunk_data.empty())
         {
             std::cerr << "Warning: Chunk " << i << " is missing or invalid" << std::endl;
+            continue;
+        }
+
+        auto it = chunk_map.find(i);
+        if (it != chunk_map.end())
+        {
+            const ChunkData *matching_chunk = it->second;
+            final_data.insert(final_data.end(),
+                              chunk_data.begin(),
+                              chunk_data.begin() + matching_chunk->header.chunk_size);
         }
     }
 
