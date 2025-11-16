@@ -36,8 +36,6 @@ mysterious_heap
 #define HINT_PATH "hint"
 #define DECODED_DATA_PATH "decoded_data"
 
-using namespace std;
-
 struct Pool_Node
 {
     Pool_Node *prev;
@@ -70,9 +68,7 @@ struct PayloadChunkHeader
 struct ChunkData
 {
     PayloadChunkHeader header;
-    uint8_t *encrypted_data;
-
-    ChunkData() : encrypted_data(nullptr) {}
+    std::vector<uint8_t> encrypted_data;
 };
 
 void xor_encdec_8(void *data, size_t data_size, uint64_t key)
@@ -255,191 +251,173 @@ std::map<size_t, size_t> parse_hint_and_create_mapping()
     return chunk_to_key_mapping;
 }
 
-vector<ChunkData> extract_corrupted_chunks(uint8_t *memory)
+std::vector<ChunkData> extract_encrypted_chunks(uint8_t *memory)
 {
-    printf("\nNext: Search for payload chunks with flag 0x0008...\n\n");
+    std::cout << "Search for payload chunks with flag 0x0008..." << std::endl;
 
-    vector<ChunkData> chunks;
-    Pool_Node *p = (Pool_Node *)(memory);
-
-    while (p != NULL)
+    std::vector<ChunkData> chunks;
+    Pool_Node *node = reinterpret_cast<Pool_Node *>(memory);
+    while (node != nullptr)
     {
-        if (p->flags & POOL_FLAG_IS_CORRUPTED)
+        if (node->flags & POOL_FLAG_IS_CORRUPTED)
         {
-            PayloadChunkHeader *payload_chunk_p = (PayloadChunkHeader *)(p + 1);
-            uint8_t *payload_chunk = (uint8_t *)payload_chunk_p + sizeof(PayloadChunkHeader);
+            PayloadChunkHeader *payload_header = reinterpret_cast<PayloadChunkHeader *>(node + 1);
+            uint8_t *payload_data = reinterpret_cast<uint8_t *>(payload_header + 1);
 
             ChunkData chunk;
-            chunk.header = *payload_chunk_p;
+            chunk.header = *payload_header;
 
-            chunk.encrypted_data = (uint8_t *)malloc(payload_chunk_p->chunk_size);
-            memcpy(chunk.encrypted_data, payload_chunk, payload_chunk_p->chunk_size);
+            chunk.encrypted_data.assign(payload_data, payload_data + payload_header->chunk_size);
 
-            chunks.push_back(chunk);
+            chunks.push_back(std::move(chunk));
 
-            printf("Found chunk index=%zu, key=%llu, crc32=%llu, size=%zu\n",
-                   payload_chunk_p->index, payload_chunk_p->key,
-                   payload_chunk_p->crc32, payload_chunk_p->chunk_size);
+            std::cout << "Found chunk index=" << payload_header->index
+                      << ", key=" << payload_header->key
+                      << ", crc32=" << payload_header->crc32
+                      << ", size=" << payload_header->chunk_size << std::endl;
         }
-        p = p->next;
+
+        node = node->next;
     }
 
-    printf("Total chunks found: %zu\n\n", chunks.size());
+    std::cout << "Total chunks found: " << chunks.size() << std::endl;
     return chunks;
 }
 
-vector<uint8_t *> decrypt_and_verify_chunks(
-    const vector<ChunkData> &chunks,
-    const map<size_t, size_t> &chunk_to_key_mapping)
+std::vector<std::vector<uint8_t>> decrypt_and_verify_chunks(
+    const std::vector<ChunkData> &chunks,
+    const std::map<size_t, size_t> &chunk_to_key_mapping)
 {
-    map<size_t, uint64_t> index_to_key;
+    std::map<size_t, uint64_t> index_to_key;
     for (const auto &chunk : chunks)
     {
         index_to_key[chunk.header.index] = chunk.header.key;
     }
 
-    printf("Decrypting chunks...\n");
-    vector<uint8_t *> decrypted_chunks(chunks.size());
-
+    std::cout << "Decrypting chunks..." << std::endl;
+    std::vector<std::vector<uint8_t>> decrypted_chunks(chunks.size());
     for (const auto &chunk : chunks)
     {
         size_t chunk_id = chunk.header.index;
 
-        if (chunk_to_key_mapping.find(chunk_id) == chunk_to_key_mapping.end())
+        auto key_iter = chunk_to_key_mapping.find(chunk_id);
+        if (key_iter == chunk_to_key_mapping.end())
         {
-            fprintf(stderr, "Error: No mapping found for chunk_id=%zu\n", chunk_id);
+            std::cerr << "Error: No mapping found for chunk_id=" << chunk_id << std::endl;
             continue;
         }
 
-        size_t key_chunk_id = chunk_to_key_mapping.at(chunk_id);
-
-        if (index_to_key.find(key_chunk_id) == index_to_key.end())
+        size_t key_chunk_id = key_iter->second;
+        auto key_value_iter = index_to_key.find(key_chunk_id);
+        if (key_value_iter == index_to_key.end())
         {
-            fprintf(stderr, "Error: Key chunk %zu not found for chunk %zu\n", key_chunk_id, chunk_id);
+            std::cerr << "Error: Key chunk " << key_chunk_id << " not found for chunk " << chunk_id << std::endl;
             continue;
         }
 
-        uint64_t decryption_key = index_to_key[key_chunk_id];
+        uint64_t decryption_key = key_value_iter->second;
 
-        printf("Chunk %zu: using key from chunk %zu (key=%llu)\n",
-               chunk_id, key_chunk_id, decryption_key);
+        std::cout << "Chunk " << chunk_id
+                  << ": using key from chunk " << key_chunk_id
+                  << " (key=" << decryption_key << ")"
+                  << std::endl;
 
-        uint8_t *decrypted_data = (uint8_t *)malloc(chunk.header.chunk_size);
-        memcpy(decrypted_data, chunk.encrypted_data, chunk.header.chunk_size);
-        xor_encdec_8(decrypted_data, chunk.header.chunk_size, decryption_key);
-
-        uint32_t computed_crc = crc32(decrypted_data, chunk.header.chunk_size);
-
+        std::vector<uint8_t> decrypted_data(chunk.encrypted_data.begin(), chunk.encrypted_data.end());
+        xor_encdec_8(decrypted_data.data(), decrypted_data.size(), decryption_key);
+        uint32_t computed_crc = crc32(decrypted_data.data(), decrypted_data.size());
         if (computed_crc == chunk.header.crc32)
         {
-            printf("Chunk %zu decrypted successfully (CRC32 verified)\n", chunk_id);
-            decrypted_chunks[chunk_id] = decrypted_data;
+            std::cout << "Chunk " << chunk_id << " decrypted successfully (CRC32 verified)" << std::endl;
+            decrypted_chunks[chunk_id] = std::move(decrypted_data);
         }
         else
         {
-            fprintf(stderr, "Chunk %zu CRC32 mismatch! Expected=%llu, Got=%u\n",
-                    chunk_id, chunk.header.crc32, computed_crc);
-            free(decrypted_data);
-            decrypted_chunks[chunk_id] = nullptr;
+            std::cerr << "Chunk " << chunk_id << " CRC32 mismatch! "
+                      << "Expected=" << chunk.header.crc32
+                      << ", Got=" << computed_crc
+                      << std::endl;
+
+            decrypted_chunks[chunk_id].clear();
         }
     }
 
     return decrypted_chunks;
 }
 
-vector<uint8_t> assemble_final_data(
-    const vector<uint8_t *> &decrypted_chunks,
-    const vector<ChunkData> &chunks)
+std::vector<uint8_t> assemble_final_data(
+    const std::vector<std::vector<uint8_t>> &decrypted_chunks,
+    const std::vector<ChunkData> &chunks)
 {
-    printf("\nAssembling final data.\n");
-    vector<uint8_t> final_data;
-
-    for (size_t i = 0; i < decrypted_chunks.size(); i++)
+    std::cout << "Assembling final data..." << std::endl;
+    std::vector<uint8_t> final_data;
+    for (size_t i = 0; i < decrypted_chunks.size(); ++i)
     {
-        if (decrypted_chunks[i] != nullptr)
+        const std::vector<uint8_t> &chunk_data = decrypted_chunks[i];
+        if (!chunk_data.empty())
         {
-            for (const auto &chunk : chunks)
+            const ChunkData *matching_chunk = nullptr;
+            for (const ChunkData &chunk : chunks)
             {
                 if (chunk.header.index == i)
                 {
-                    final_data.insert(final_data.end(),
-                                      decrypted_chunks[i],
-                                      decrypted_chunks[i] + chunk.header.chunk_size);
+                    matching_chunk = &chunk;
                     break;
                 }
+            }
+
+            if (matching_chunk)
+            {
+                final_data.insert(final_data.end(),
+                                  chunk_data.begin(),
+                                  chunk_data.begin() + matching_chunk->header.chunk_size);
             }
         }
         else
         {
-            fprintf(stderr, "Warning: Chunk %zu is missing or invalid\n", i);
+            std::cerr << "Warning: Chunk " << i << " is missing or invalid" << std::endl;
         }
     }
 
     return final_data;
 }
 
-void save_final_data(const vector<uint8_t> &final_data)
+void save_final_data(const std::vector<uint8_t> &final_data)
 {
     uint32_t final_crc = crc32(final_data.data(), final_data.size());
-    printf("\nFinal data size: %zu bytes\n", final_data.size());
-    printf("Final CRC32: %u\n", final_crc);
+    std::cout << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
+    std::cout << "Final CRC32: " << final_crc << std::endl;
+    std::cout << "To finalize the file run next command (assuming you in build folder): python ../finalize_the_file.py --hash " << final_crc << " --filepath " << DECODED_DATA_PATH << std::endl;
 
-    ofstream output_file(DECODED_DATA_PATH, ios::binary);
+    std::ofstream output_file(DECODED_DATA_PATH, std::ios::binary);
     if (!output_file)
     {
-        fprintf(stderr, "Error: Cannot create output file\n");
+        std::cerr << "Error: Cannot create output file" << std::endl;
+        return;
     }
-    else
-    {
-        output_file.write((const char *)final_data.data(), final_data.size());
-        output_file.close();
-        std::cout << "Successfully saved to " << DECODED_DATA_PATH << std::endl;
-    }
+
+    output_file.write(reinterpret_cast<const char *>(final_data.data()), final_data.size());
+    std::cout << "Successfully saved to " << DECODED_DATA_PATH << std::endl;
 }
 
-void cleanup_chunks(vector<ChunkData> &chunks, vector<uint8_t *> &decrypted_chunks)
+void get_hint2(uint8_t *memory)
 {
-    for (auto &chunk : chunks)
-    {
-        if (chunk.encrypted_data)
-        {
-            free(chunk.encrypted_data);
-        }
-    }
-
-    for (auto *decrypted : decrypted_chunks)
-    {
-        if (decrypted)
-        {
-            free(decrypted);
-        }
-    }
-}
-
-void get_hint2(uint8_t *memory, size_t memory_size)
-{
-    map<size_t, size_t> chunk_to_key_mapping = parse_hint_and_create_mapping();
-
+    std::map<size_t, size_t> chunk_to_key_mapping = parse_hint_and_create_mapping();
     if (chunk_to_key_mapping.empty())
     {
-        fprintf(stderr, "Failed to create chunk mapping\n");
+        std::cerr << "Failed to create chunk mapping" << std::endl;
         return;
     }
 
-    vector<ChunkData> chunks = extract_corrupted_chunks(memory);
+    std::vector<ChunkData> chunks = extract_encrypted_chunks(memory);
     if (chunks.empty())
     {
-        fprintf(stderr, "No chunks found\n");
+        std::cerr << "No chunks found" << std::endl;
         return;
     }
 
-    vector<uint8_t *> decrypted_chunks = decrypt_and_verify_chunks(chunks, chunk_to_key_mapping);
-
-    vector<uint8_t> final_data = assemble_final_data(decrypted_chunks, chunks);
-
+    std::vector<std::vector<uint8_t>> decrypted_chunks = decrypt_and_verify_chunks(chunks, chunk_to_key_mapping);
+    std::vector<uint8_t> final_data = assemble_final_data(decrypted_chunks, chunks);
     save_final_data(final_data);
-
-    cleanup_chunks(chunks, decrypted_chunks);
 
     google::protobuf::ShutdownProtobufLibrary();
 }
@@ -450,7 +428,7 @@ int main()
     uint8_t *memory = NULL;
     size_t memory_size = mysterious_heap_load(&memory, fname);
     get_hint1(memory, memory_size);
-    get_hint2(memory, memory_size);
+    get_hint2(memory);
     free(memory);
     return 0;
 }
