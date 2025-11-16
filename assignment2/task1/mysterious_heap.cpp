@@ -389,8 +389,7 @@ void save_final_data(const std::vector<uint8_t> &final_data, const std::string s
 {
     uint32_t final_crc = crc32(final_data.data(), final_data.size());
     std::cout << "\nSaving final data to '" << save_path << "'..." << std::endl;
-    std::cout
-        << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
+    std::cout << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
     std::cout << "Final CRC32: " << final_crc << std::endl;
     std::cout << "To finalize the file run next command: python ../finalize_the_file.py --hash " << final_crc << " --filepath " << save_path << std::endl;
 
@@ -428,7 +427,22 @@ void get_hint2(uint8_t *memory)
     }
 
     std::vector<std::vector<uint8_t>> decrypted_chunks = decrypt_and_verify_chunks(chunks, chunk_to_key_mapping);
+    for (size_t i = 0; i < decrypted_chunks.size(); ++i)
+    {
+        if (decrypted_chunks[i].empty())
+        {
+            std::cerr << "Chunk " << i << " failed decryption or CRC check, aborting assembly" << std::endl;
+            return;
+        }
+    }
+
     std::vector<uint8_t> final_data = assemble_final_data(decrypted_chunks, chunks);
+    if (final_data.empty())
+    {
+        std::cerr << "Final data is empty after assembly" << std::endl;
+        return;
+    }
+
     save_final_data(final_data, DECODED_DATA_PATH);
 
     google::protobuf::ShutdownProtobufLibrary();
