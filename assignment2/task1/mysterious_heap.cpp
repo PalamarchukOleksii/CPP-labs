@@ -192,6 +192,7 @@ NextHint parse_hint_file(const std::string hint_path)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+    std::cout << "\nParsing hint file '" << hint_path << "'..." << std::endl;
     std::ifstream hint_file(hint_path, std::ios::binary);
     if (!hint_file.is_open())
     {
@@ -234,7 +235,6 @@ NextHint parse_hint_file(const std::string hint_path)
 
     std::cout << "Successfully parsed protobuf!" << std::endl;
     std::cout << "Number of chunks: " << next_hint.chunks_info_size() << std::endl;
-    std::cout << "Hint message: " << next_hint.hint_message() << std::endl;
 
     return next_hint;
 }
@@ -247,8 +247,8 @@ std::map<size_t, size_t> create_key_to_chunk_mapping(const NextHint &next_hint)
     {
         const PayloadChunk &chunk = next_hint.chunks_info(i);
         chunk_to_key_mapping[chunk.key_id()] = chunk.chunk_id();
-        std::cout << "chunk_id=" << std::setw(3) << chunk.chunk_id()
-                  << " encrypts with key from chunk_id=" << std::setw(3) << chunk.key_id()
+        std::cout << "chunk_id=" << std::setw(2) << chunk.chunk_id()
+                  << " encrypts with key from chunk_id=" << std::setw(2) << chunk.key_id()
                   << std::endl;
     }
 
@@ -257,7 +257,7 @@ std::map<size_t, size_t> create_key_to_chunk_mapping(const NextHint &next_hint)
 
 std::vector<ChunkData> extract_encrypted_chunks(uint8_t *memory)
 {
-    std::cout << "Search for payload chunks with flag 0x0008..." << std::endl;
+    std::cout << "\nSearch for payload chunks with flag 0x0008..." << std::endl;
 
     std::vector<ChunkData> chunks;
     Pool_Node *node = reinterpret_cast<Pool_Node *>(memory);
@@ -298,7 +298,7 @@ std::vector<std::vector<uint8_t>> decrypt_and_verify_chunks(
         index_to_key[chunk.header.index] = chunk.header.key;
     }
 
-    std::cout << "Decrypting chunks..." << std::endl;
+    std::cout << "\nDecrypting chunks..." << std::endl;
     std::vector<std::vector<uint8_t>> decrypted_chunks(chunks.size());
     for (const auto &chunk : chunks)
     {
@@ -329,12 +329,7 @@ std::vector<std::vector<uint8_t>> decrypt_and_verify_chunks(
         std::vector<uint8_t> decrypted_data(chunk.encrypted_data.begin(), chunk.encrypted_data.end());
         xor_encdec_8(decrypted_data.data(), decrypted_data.size(), decryption_key);
         uint32_t computed_crc = crc32(decrypted_data.data(), decrypted_data.size());
-        if (computed_crc == chunk.header.crc32)
-        {
-            std::cout << "Chunk " << chunk_id << " decrypted successfully (CRC32 verified)" << std::endl;
-            decrypted_chunks[chunk_id] = std::move(decrypted_data);
-        }
-        else
+        if (computed_crc != chunk.header.crc32)
         {
             std::cerr << "Chunk " << chunk_id << " CRC32 mismatch! "
                       << "Expected=" << chunk.header.crc32
@@ -343,6 +338,9 @@ std::vector<std::vector<uint8_t>> decrypt_and_verify_chunks(
 
             decrypted_chunks[chunk_id].clear();
         }
+
+        std::cout << "Chunk " << chunk_id << " decrypted successfully (CRC32 verified)" << std::endl;
+        decrypted_chunks[chunk_id] = std::move(decrypted_data);
     }
 
     return decrypted_chunks;
@@ -352,7 +350,7 @@ std::vector<uint8_t> assemble_final_data(
     const std::vector<std::vector<uint8_t>> &decrypted_chunks,
     const std::vector<ChunkData> &chunks)
 {
-    std::cout << "Assembling final data..." << std::endl;
+    std::cout << "\nAssembling final data..." << std::endl;
 
     std::unordered_map<size_t, const ChunkData *> chunk_map;
     size_t total_size = 0;
@@ -387,14 +385,16 @@ std::vector<uint8_t> assemble_final_data(
     return final_data;
 }
 
-void save_final_data(const std::vector<uint8_t> &final_data)
+void save_final_data(const std::vector<uint8_t> &final_data, const std::string save_path)
 {
     uint32_t final_crc = crc32(final_data.data(), final_data.size());
-    std::cout << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
+    std::cout << "\nSaving final data to '" << save_path << "'..." << std::endl;
+    std::cout
+        << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
     std::cout << "Final CRC32: " << final_crc << std::endl;
-    std::cout << "To finalize the file run next command: python ../finalize_the_file.py --hash " << final_crc << " --filepath " << DECODED_DATA_PATH << std::endl;
+    std::cout << "To finalize the file run next command: python ../finalize_the_file.py --hash " << final_crc << " --filepath " << save_path << std::endl;
 
-    std::ofstream output_file(DECODED_DATA_PATH, std::ios::binary);
+    std::ofstream output_file(save_path, std::ios::binary);
     if (!output_file)
     {
         std::cerr << "Error: Cannot create output file" << std::endl;
@@ -402,7 +402,6 @@ void save_final_data(const std::vector<uint8_t> &final_data)
     }
 
     output_file.write(reinterpret_cast<const char *>(final_data.data()), final_data.size());
-    std::cout << "Successfully saved to " << DECODED_DATA_PATH << std::endl;
 }
 
 void get_hint2(uint8_t *memory)
@@ -430,7 +429,7 @@ void get_hint2(uint8_t *memory)
 
     std::vector<std::vector<uint8_t>> decrypted_chunks = decrypt_and_verify_chunks(chunks, chunk_to_key_mapping);
     std::vector<uint8_t> final_data = assemble_final_data(decrypted_chunks, chunks);
-    save_final_data(final_data);
+    save_final_data(final_data, DECODED_DATA_PATH);
 
     google::protobuf::ShutdownProtobufLibrary();
 }
