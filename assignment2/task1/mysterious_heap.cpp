@@ -188,15 +188,15 @@ void get_hint1(uint8_t *memory, size_t memory_size)
     std::cout << "Data extraction complete. Saved to " << HINT_PATH << std::endl;
 }
 
-std::map<size_t, size_t> parse_hint_and_create_mapping()
+NextHint parse_hint_file(const std::string hint_path)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    std::ifstream hint_file(HINT_PATH, std::ios::binary);
+    std::ifstream hint_file(hint_path, std::ios::binary);
     if (!hint_file.is_open())
     {
         std::cerr << "Error: Cannot open hint file" << std::endl;
-        return {};
+        return NextHint();
     }
 
     std::string hint_data((std::istreambuf_iterator<char>(hint_file)), std::istreambuf_iterator<char>());
@@ -207,7 +207,7 @@ std::map<size_t, size_t> parse_hint_and_create_mapping()
     if (start_marker == std::string::npos)
     {
         std::cerr << "Error: Cannot find start marker '" << start_marker_str << "'" << std::endl;
-        return {};
+        return NextHint();
     }
 
     std::string end_marker_str = "syntax";
@@ -215,7 +215,7 @@ std::map<size_t, size_t> parse_hint_and_create_mapping()
     if (end_marker == std::string::npos)
     {
         std::cerr << "Error: Cannot find end marker '" << end_marker_str << "'" << std::endl;
-        return {};
+        return NextHint();
     }
 
     size_t protobuf_start = hint_data.find('\n', start_marker) + 1;
@@ -229,15 +229,19 @@ std::map<size_t, size_t> parse_hint_and_create_mapping()
     if (!next_hint.ParseFromString(protobuf_data))
     {
         std::cerr << "Error: Failed to parse protobuf message" << std::endl;
-        return {};
+        return NextHint();
     }
 
     std::cout << "Successfully parsed protobuf!" << std::endl;
     std::cout << "Number of chunks: " << next_hint.chunks_info_size() << std::endl;
     std::cout << "Hint message: " << next_hint.hint_message() << std::endl;
 
+    return next_hint;
+}
+
+std::map<size_t, size_t> create_key_to_chunk_mapping(const NextHint &next_hint)
+{
     std::cout << "\nChunk ID -> Key ID Mapping:" << std::endl;
-    std::cout << "--------------------------------------------------" << std::endl;
     std::map<size_t, size_t> chunk_to_key_mapping;
     for (int i = 0; i < next_hint.chunks_info_size(); ++i)
     {
@@ -386,7 +390,7 @@ void save_final_data(const std::vector<uint8_t> &final_data)
     uint32_t final_crc = crc32(final_data.data(), final_data.size());
     std::cout << "\nFinal data size: " << final_data.size() << " bytes" << std::endl;
     std::cout << "Final CRC32: " << final_crc << std::endl;
-    std::cout << "To finalize the file run next command (assuming you in build folder): python ../finalize_the_file.py --hash " << final_crc << " --filepath " << DECODED_DATA_PATH << std::endl;
+    std::cout << "To finalize the file run next command: python ../finalize_the_file.py --hash " << final_crc << " --filepath " << DECODED_DATA_PATH << std::endl;
 
     std::ofstream output_file(DECODED_DATA_PATH, std::ios::binary);
     if (!output_file)
@@ -401,7 +405,14 @@ void save_final_data(const std::vector<uint8_t> &final_data)
 
 void get_hint2(uint8_t *memory)
 {
-    std::map<size_t, size_t> chunk_to_key_mapping = parse_hint_and_create_mapping();
+    NextHint next_hint = parse_hint_file(HINT_PATH);
+    if (next_hint.chunks_info_size() == 0)
+    {
+        std::cerr << "Failed to parse hint file or no chunks available" << std::endl;
+        return;
+    }
+
+    std::map<size_t, size_t> chunk_to_key_mapping = create_key_to_chunk_mapping(next_hint);
     if (chunk_to_key_mapping.empty())
     {
         std::cerr << "Failed to create chunk mapping" << std::endl;
