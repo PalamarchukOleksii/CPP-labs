@@ -33,6 +33,9 @@ mysterious_heap
 #define POOL_FLAG_IS_INTERESTING 0x0004
 #define POOL_FLAG_IS_CORRUPTED 0x0008
 
+#define HINT_PATH "hint"
+#define DECODED_DATA_PATH "decoded_data"
+
 using namespace std;
 
 struct Pool_Node
@@ -146,7 +149,7 @@ size_t mysterious_heap_load(uint8_t **memory, const char *fname)
 void get_hint1(uint8_t *memory, size_t memory_size)
 {
     Pool_Node *p = (Pool_Node *)(memory);
-    FILE *output_file = fopen("../hint", "wb");
+    FILE *output_file = fopen(HINT_PATH, "wb");
     if (!output_file)
     {
         fprintf(stderr, "Error: Cannot create output file\n");
@@ -186,61 +189,67 @@ void get_hint1(uint8_t *memory, size_t memory_size)
     }
 
     fclose(output_file);
-    printf("Data extraction complete. Saved to ../hint\n");
+    std::cout << "Data extraction complete. Saved to " << HINT_PATH << std::endl;
 }
 
-map<size_t, size_t> parse_hint_and_create_mapping()
+std::map<size_t, size_t> parse_hint_and_create_mapping()
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    ifstream hint_file("../hint", ios::binary);
-    if (!hint_file)
+    std::ifstream hint_file(HINT_PATH, std::ios::binary);
+    if (!hint_file.is_open())
     {
-        hint_file.open("hint", ios::binary);
-        if (!hint_file)
-        {
-            fprintf(stderr, "Error: Cannot open hint file\n");
-            return map<size_t, size_t>();
-        }
+        std::cerr << "Error: Cannot open hint file" << std::endl;
+        return {};
     }
 
-    string hint_data((istreambuf_iterator<char>(hint_file)),
-                     istreambuf_iterator<char>());
+    std::string hint_data((std::istreambuf_iterator<char>(hint_file)), std::istreambuf_iterator<char>());
     hint_file.close();
 
-    size_t schema_pos = hint_data.find("syntax = ");
-
-    if (schema_pos == string::npos)
+    std::string start_marker_str = "file\n```";
+    size_t start_marker = hint_data.find(start_marker_str);
+    if (start_marker == std::string::npos)
     {
-        fprintf(stderr, "Error: Cannot find schema marker\n");
-        return map<size_t, size_t>();
+        std::cerr << "Error: Cannot find start marker '" << start_marker_str << "'" << std::endl;
+        return {};
     }
 
-    string protobuf_data = hint_data.substr(0, schema_pos);
-    printf("Protobuf data size: %zu bytes\n", protobuf_data.size());
+    std::string end_marker_str = "syntax";
+    size_t end_marker = hint_data.find(end_marker_str);
+    if (end_marker == std::string::npos)
+    {
+        std::cerr << "Error: Cannot find end marker '" << end_marker_str << "'" << std::endl;
+        return {};
+    }
+
+    size_t protobuf_start = hint_data.find('\n', start_marker) + 1;
+    std::string protobuf_data = hint_data.substr(protobuf_start, end_marker - protobuf_start);
+
+    std::cout << "Protobuf start offset: " << protobuf_start << std::endl;
+    std::cout << "Protobuf end offset: " << end_marker << std::endl;
+    std::cout << "Protobuf data size: " << protobuf_data.size() << " bytes" << std::endl;
 
     NextHint next_hint;
     if (!next_hint.ParseFromString(protobuf_data))
     {
-        fprintf(stderr, "Error: Failed to parse protobuf message\n");
-        return map<size_t, size_t>();
+        std::cerr << "Error: Failed to parse protobuf message" << std::endl;
+        return {};
     }
 
-    printf("Successfully parsed protobuf!\n");
-    printf("Number of chunks: %d\n", next_hint.chunks_info_size());
-    printf("Hint message: %s\n", next_hint.hint_message().c_str());
+    std::cout << "Successfully parsed protobuf!" << std::endl;
+    std::cout << "Number of chunks: " << next_hint.chunks_info_size() << std::endl;
+    std::cout << "Hint message: " << next_hint.hint_message() << std::endl;
 
-    printf("\nChunk ID -> Key ID Mapping:\n");
-    printf("--------------------------------------------------\n");
-
-    map<size_t, size_t> chunk_to_key_mapping;
-
-    for (int i = 0; i < next_hint.chunks_info_size(); i++)
+    std::cout << "\nChunk ID -> Key ID Mapping:" << std::endl;
+    std::cout << "--------------------------------------------------" << std::endl;
+    std::map<size_t, size_t> chunk_to_key_mapping;
+    for (int i = 0; i < next_hint.chunks_info_size(); ++i)
     {
         const PayloadChunk &chunk = next_hint.chunks_info(i);
         chunk_to_key_mapping[chunk.key_id()] = chunk.chunk_id();
-        printf("  chunk_id=%3lld encrypts with key from chunk_id=%3lld\n",
-               (long long)chunk.chunk_id(), (long long)chunk.key_id());
+        std::cout << "chunk_id=" << std::setw(3) << chunk.chunk_id()
+                  << " encrypts with key from chunk_id=" << std::setw(3) << chunk.key_id()
+                  << std::endl;
     }
 
     return chunk_to_key_mapping;
@@ -375,7 +384,7 @@ void save_final_data(const vector<uint8_t> &final_data)
     printf("\nFinal data size: %zu bytes\n", final_data.size());
     printf("Final CRC32: %u\n", final_crc);
 
-    ofstream output_file("../decoded_chunks.txt", ios::binary);
+    ofstream output_file(DECODED_DATA_PATH, ios::binary);
     if (!output_file)
     {
         fprintf(stderr, "Error: Cannot create output file\n");
@@ -384,7 +393,7 @@ void save_final_data(const vector<uint8_t> &final_data)
     {
         output_file.write((const char *)final_data.data(), final_data.size());
         output_file.close();
-        printf("Successfully saved to decoded_chunks.txt\n");
+        std::cout << "Successfully saved to " << DECODED_DATA_PATH << std::endl;
     }
 }
 
