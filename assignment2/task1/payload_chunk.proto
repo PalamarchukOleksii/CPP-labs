@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message PayloadChunk {
+  optional int64 chunk_id = 1;
+  optional int64 key_id = 2;
+}
+
+message NextHint {
+  optional string hint_message = 1;
+  repeated PayloadChunk chunks_info = 2;
+}
